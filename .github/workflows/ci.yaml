@@ -39,6 +39,10 @@ jobs:
       - name: Test
         run: cargo test --release
 
+      - name: Fix .dockerignore
+        run: |
+          rm -Rf .dockerignore
+
       - name: Create image
         run: |
           docker build -t $IMAGE_NAME .

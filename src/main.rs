@@ -123,7 +123,7 @@ async fn forward(
 ) -> Result<HttpResponse, actix_web::Error> {
     let event = req.to_event(payload).await?;
 
-    log::info!("Received Event: {:?}", event);
+    log::debug!("Received Event: {:?}", event);
 
     let data: Option<&Data> = event.data();
 
@@ -149,7 +149,7 @@ async fn forward(
 
         // process result
 
-        log::info!("Result: {:?}", result);
+        log::debug!("Result: {:?}", result);
 
         match result {
             Ok(_) => Ok(HttpResponse::Accepted().finish()),
@@ -211,7 +211,7 @@ async fn main() -> anyhow::Result<()> {
 
     for (key, value) in std::env::vars() {
         if let Some(field) = key.strip_prefix("FIELD_") {
-            log::info!("Adding field - {} -> {}", field, value);
+            log::debug!("Adding field - {} -> {}", field, value);
             let compiled = jsonpath_lib::Compiled::compile(&value)
                 .map_err(|err| anyhow::anyhow!("Failed to parse JSON path: {}", err))?;
             fields.insert(
@@ -222,7 +222,7 @@ async fn main() -> anyhow::Result<()> {
                 },
             );
         } else if let Some(tag) = key.strip_prefix("TAG_") {
-            log::info!("Adding tag - {} -> {}", tag, value);
+            log::debug!("Adding tag - {} -> {}", tag, value);
             let compiled = jsonpath_lib::Compiled::compile(&value)
                 .map_err(|err| anyhow::anyhow!("Failed to parse JSON path: {}", err))?;
             tags.insert(

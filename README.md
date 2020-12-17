@@ -63,3 +63,12 @@ The following example defines a tag (named `device_id`), which will take the val
 - name: TAG_DEVICE_ID
   value: $.subject
 ~~~
+
+## Building
+
+You can build the container image using:
+
+~~~shell
+cargo build --release
+docker build . -t drogue-influxdb-pusher
+~~~

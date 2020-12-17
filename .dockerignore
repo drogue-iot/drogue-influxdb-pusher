@@ -1,2 +1,2 @@
 target/
-!target/*/influxdb-pusher
+!target/*/drogue-influxdb-pusher

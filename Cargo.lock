@@ -868,6 +868,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
+name = "drogue-influxdb-pusher"
+version = "0.3.0"
+dependencies = [
+ "actix-rt",
+ "actix-service",
+ "actix-web",
+ "anyhow",
+ "chrono",
+ "cloudevents-sdk",
+ "cloudevents-sdk-actix-web",
+ "cloudevents-sdk-reqwest",
+ "env_logger",
+ "envconfig",
+ "futures",
+ "futures-core",
+ "futures-util",
+ "influxdb",
+ "jsonpath_lib",
+ "log",
+ "serde",
+ "serde_json",
+ "snafu",
+]
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1419,31 +1444,6 @@ dependencies = [
  "serde_json",
  "surf",
  "thiserror",
-]
-
-[[package]]
-name = "influxdb-pusher"
-version = "0.3.0"
-dependencies = [
- "actix-rt",
- "actix-service",
- "actix-web",
- "anyhow",
- "chrono",
- "cloudevents-sdk",
- "cloudevents-sdk-actix-web",
- "cloudevents-sdk-reqwest",
- "env_logger",
- "envconfig",
- "futures",
- "futures-core",
- "futures-util",
- "influxdb",
- "jsonpath_lib",
- "log",
- "serde",
- "serde_json",
- "snafu",
 ]
 
 [[package]]

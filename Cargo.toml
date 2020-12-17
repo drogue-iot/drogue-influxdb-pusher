@@ -21,7 +21,7 @@ envconfig = "0.9"
 
 chrono = "0.4"
 influxdb = { version = "0.3", features = ["derive", "use-serde"] }
-jsonpath_lib = "0.2"
+jsonpath_lib = "0.2.6"
 snafu = "0.6"
 
 serde = { version = "1", features = ["derive"] }

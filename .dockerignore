@@ -1,2 +1,4 @@
 target/
-!target/*/drogue-influxdb-pusher
+Dockerfile
+.idea/
+!**/drogue-influxdb-pusher

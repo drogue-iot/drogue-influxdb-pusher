@@ -11,6 +11,7 @@ use influxdb::{Client, InfluxDbWriteable, Timestamp, Type, WriteQuery};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::env::VarError;
 
 fn add_to_query<F>(
     mut query: WriteQuery,
@@ -232,6 +233,20 @@ impl TryFrom<String> for ExpectedType {
     }
 }
 
+impl TryFrom<Result<String, VarError>> for ExpectedType {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Result<String, VarError>) -> Result<Self, Self::Error> {
+        value
+            .map(Option::Some)
+            .or_else(|err| match err {
+                VarError::NotPresent => Ok(None),
+                err => Err(err),
+            })?
+            .map_or_else(|| Ok(ExpectedType::None), TryInto::try_into)
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Processor {
     pub client: Client,
@@ -258,7 +273,9 @@ async fn main() -> anyhow::Result<()> {
             log::debug!("Adding field - {} -> {}", field, value);
             let compiled = jsonpath_lib::Compiled::compile(&value)
                 .map_err(|err| anyhow::anyhow!("Failed to parse JSON path: {}", err))?;
-            let expected_type = std::env::var(format!("TYPE_FIELD_{}", field))?.try_into()?;
+
+            // find expected type for the field
+            let expected_type = std::env::var(format!("TYPE_FIELD_{}", field)).try_into()?;
             fields.insert(
                 field.to_lowercase(),
                 Path {

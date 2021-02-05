@@ -56,6 +56,26 @@ data section of the cloud events:
   value: $.temp
 ~~~
 
+For each field, you can also configure the expected type, the default is to try and auto-convert the value:
+
+~~~yaml
+- name: TYPE_FIELD_TEMPERATURE
+  value: float
+~~~
+
+The types correspond to the InfluxDB types. The following types are available:
+
+<dl>
+    <dt><code>none</code> (the default)</dt> <dd>Try auto-conversion. For numbers, this will try a float first, then fall back to signed, and then to unsigned integers.</dd>
+    <dt><code>float</code>, <code>number</code></dt> <dd>Floating point value</dd>
+    <dt><code>string</code>, <code>text</code></dt> <dd>Text value</dd>
+    <dt><code>bool</code>, <code>boolean</code></dt> <dd>Boolean value</dd>
+    <dt><code>int</code>, <code>integer</code></dt> <dd>Signed integer value</dd>
+    <dt><code>uint</code>, <code>unsigned</code></dt> <dd>Unsigned integer value</dd>
+</dl>
+
+If a value cannot be converted, and error is raised.
+
 The following example defines a tag (named `device_id`), which will take the value from the cloud events attribute
 `subject`:
 

@@ -12,8 +12,10 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::env::VarError;
+use std::str::FromStr;
 
 fn add_to_query<F>(
+    config: &Config,
     mut query: WriteQuery,
     processor: &HashMap<String, Path>,
     json: &Value,
@@ -41,7 +43,11 @@ where
             // no value, don't add
             [] => Ok(query),
             // single value, process
-            [v] => Ok(f(query, field, path.r#type.convert(v, path)?)),
+            [v] => Ok(f(
+                query,
+                field,
+                path.r#type.convert(v, path, config.disable_try_parse)?,
+            )),
             // multiple values, error
             [..] => Err(ServiceError::SelectorError {
                 details: format!("Selector found more than one value: {}", sel.len()),
@@ -53,23 +59,33 @@ where
 }
 
 fn add_values(
+    config: &Config,
     query: WriteQuery,
     processor: &Processor,
     json: &Value,
 ) -> Result<(WriteQuery, usize), ServiceError> {
-    add_to_query(query, &processor.fields, json, |query, field, value| {
-        query.add_field(field, value)
-    })
+    add_to_query(
+        config,
+        query,
+        &processor.fields,
+        json,
+        |query, field, value| query.add_field(field, value),
+    )
 }
 
 fn add_tags(
+    config: &Config,
     query: WriteQuery,
     processor: &Processor,
     json: &Value,
 ) -> Result<(WriteQuery, usize), ServiceError> {
-    add_to_query(query, &processor.tags, json, |query, field, value| {
-        query.add_tag(field, value)
-    })
+    add_to_query(
+        config,
+        query,
+        &processor.tags,
+        json,
+        |query, field, value| query.add_tag(field, value),
+    )
 }
 
 fn parse_payload(data: Option<&Data>) -> Result<Value, ServiceError> {
@@ -112,12 +128,12 @@ async fn forward(
     // process values with payload only
 
     let json = parse_payload(data)?;
-    let (query, num) = add_values(query, &processor, &json)?;
+    let (query, num) = add_values(&processor.config, query, &processor, &json)?;
 
     // create full events JSON for tags
 
     let event_json = serde_json::to_value(event)?;
-    let (query, _) = add_tags(query, &processor, &event_json)?;
+    let (query, _) = add_tags(&processor.config, query, &processor, &event_json)?;
 
     // execute query
 
@@ -157,6 +173,8 @@ struct Config {
     pub max_json_payload_size: usize,
     #[envconfig(from = "BIND_ADDR", default = "127.0.0.1:8080")]
     pub bind_addr: String,
+    #[envconfig(from = "DISABLE_TRY_PARSE")]
+    pub disable_try_parse: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -177,21 +195,74 @@ enum ExpectedType {
 }
 
 impl ExpectedType {
-    fn accept(&self, value: Option<Type>) -> Result<Type, ServiceError> {
-        value.ok_or_else(|| ServiceError::PayloadParseError {
-            details: format!(""),
-        })
+    fn accept<T, M, F>(
+        &self,
+        value: &Value,
+        map: M,
+        ext: F,
+        disable_try_parse: bool,
+    ) -> Result<Type, ServiceError>
+    where
+        T: Into<Type> + FromStr,
+        M: FnOnce(T) -> Type,
+        F: FnOnce(&Value) -> Option<T>,
+    {
+        // extract the value
+        let result = ext(value);
+
+        // or else a missing value error
+        let result = result.ok_or_else(|| ServiceError::PayloadParseError {
+            details: format!("Missing value"),
+        });
+
+        // unless conversion is disabled ...
+        let result = if !disable_try_parse {
+            // ... try to compensate missing value with a conversion
+            result.or_else(|e| match value.as_str().map(|s| s.parse()) {
+                Some(r) => r.map_err(|_| ServiceError::ConversionError {
+                    details: format!("Failed to convert from: {}", value),
+                }),
+                None => Err(e),
+            })
+        } else {
+            result
+        };
+
+        // convert to Type and return
+        result.map(map)
     }
 
-    pub fn convert(&self, value: &Value, path: &Path) -> Result<Type, ServiceError> {
+    pub fn convert(
+        &self,
+        value: &Value,
+        path: &Path,
+        disable_try_parse: bool,
+    ) -> Result<Type, ServiceError> {
         match self {
-            ExpectedType::Boolean => self.accept(value.as_bool().map(Type::Boolean)),
-            ExpectedType::Text => {
-                self.accept(value.as_str().map(ToString::to_string).map(Type::Text))
+            ExpectedType::Text => self.accept(
+                value,
+                Type::Text,
+                |v| v.as_str().map(ToString::to_string),
+                disable_try_parse,
+            ),
+            ExpectedType::Boolean => {
+                self.accept(value, Type::Boolean, |v| v.as_bool(), disable_try_parse)
             }
-            ExpectedType::UnsignedInteger => self.accept(value.as_u64().map(Type::UnsignedInteger)),
-            ExpectedType::SignedInteger => self.accept(value.as_i64().map(Type::SignedInteger)),
-            ExpectedType::Float => self.accept(value.as_f64().map(Type::Float)),
+            ExpectedType::UnsignedInteger => self.accept(
+                value,
+                Type::UnsignedInteger,
+                |v| v.as_u64(),
+                disable_try_parse,
+            ),
+            ExpectedType::SignedInteger => self.accept(
+                value,
+                Type::SignedInteger,
+                |v| v.as_i64(),
+                disable_try_parse,
+            ),
+            ExpectedType::Float => {
+                self.accept(value, Type::Float, |v| v.as_f64(), disable_try_parse)
+            }
             ExpectedType::None => match value {
                 Value::String(s) => Ok(Type::Text(s.clone())),
                 Value::Bool(b) => Ok(Type::Boolean(*b)),
@@ -253,6 +324,7 @@ struct Processor {
     pub table: String,
     pub fields: HashMap<String, Path>,
     pub tags: HashMap<String, Path>,
+    pub config: Config,
 }
 
 #[actix_rt::main]
@@ -304,6 +376,7 @@ async fn main() -> anyhow::Result<()> {
         table: influx.table,
         fields,
         tags,
+        config: config.clone(),
     };
 
     HttpServer::new(move || {

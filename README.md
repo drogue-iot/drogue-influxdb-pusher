@@ -34,6 +34,7 @@ You can use the following environment variables to configure its behavior:
 | `INFLUXDB_USERNAME` | | none | The username used to login in to database instance |
 | `INFLUXDB_PASSWORD` | | none | The password used to login in to database instance |
 | `INFLUXDB_TABLE` | x | none | The table to write to |
+| `DISABLE_TRY_PARSE` | | `false` | Disable trying to parse expected value from String format |
 
 Additionally, you need to configure a set of fields and (optionally) some tags, which make up the write query. Both
 are configured using environment variables. Fields are prefixed with `FIELD_` and tags are prefixed with `TAG_`.

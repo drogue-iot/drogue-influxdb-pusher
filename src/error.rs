@@ -8,6 +8,8 @@ pub enum ServiceError {
     SelectorError { details: String },
     #[snafu(display("Failed processing payload: {details}", details=details))]
     PayloadParseError { details: String },
+    #[snafu(display("Failed converted expected type: {details}", details=details))]
+    ConversionError { details: String },
 }
 
 impl ResponseError for ServiceError {
@@ -23,6 +25,12 @@ impl ResponseError for ServiceError {
             ServiceError::PayloadParseError { .. } => {
                 HttpResponse::NotAcceptable().json(ErrorResponse {
                     error: "PayloadError".into(),
+                    message,
+                })
+            }
+            ServiceError::ConversionError { .. } => {
+                HttpResponse::NotAcceptable().json(ErrorResponse {
+                    error: "ConversionError".into(),
                     message,
                 })
             }

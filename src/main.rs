@@ -173,7 +173,7 @@ struct Config {
     pub max_json_payload_size: usize,
     #[envconfig(from = "BIND_ADDR", default = "127.0.0.1:8080")]
     pub bind_addr: String,
-    #[envconfig(from = "DISABLE_TRY_PARSE")]
+    #[envconfig(from = "DISABLE_TRY_PARSE", default = "false")]
     pub disable_try_parse: bool,
 }
 
